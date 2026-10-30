@@ -1,0 +1,23 @@
+# ---- 构建产物（release.ps1 可重建，292MB，绝不入库）----
+wsl-launcher-app/dist/
+build/
+
+# ---- 依赖 ----
+node_modules/
+
+# ---- 运行日志 ----
+*-log.txt
+
+# ---- 截图归档（体积大，可用发布流程重拍）----
+wsl-launcher-app/previews/
+wsl-launcher-app/preview*.png
+
+# ---- 旧网页版（wsl-launcher/）已被桌面版取代，整体不入库 ----
+wsl-launcher/
+
+# ---- 智能体 / 编辑器 / 系统状态 ----
+.workbuddy/
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

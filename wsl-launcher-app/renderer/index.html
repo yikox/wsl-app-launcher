@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>WSL 应用启动台</title>
+<style>
+:root{
+  --bg:#f4f5f7; --card:#ffffff; --border:#e5e7eb; --text:#101828; --muted:#667085;
+  --accent:#185fa5; --accent-2:#0c447c; --chip:#eef2f6;
+  --mono:Consolas,"Cascadia Mono","Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none !important}
+html,body{height:100%}
+body{font-family:"Segoe UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100vh;overflow:hidden;-webkit-user-select:none;user-select:none}
+.main{flex:1;overflow-y:auto;padding:26px 34px 40px}
+.wrap{max-width:1180px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+h1 .ver{font-size:11px;font-weight:600;color:#5a6b85;background:#e8eef6;border-radius:20px;padding:2px 9px;margin-left:9px;vertical-align:2px;letter-spacing:.2px}
+h1{font-size:22px;font-weight:600;letter-spacing:.4px}
+.sub{color:var(--muted);font-size:12.5px;margin-top:5px}
+.sub b{color:var(--text);font-weight:600}
+.tools{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+#q{border:1px solid var(--border);border-radius:9px;padding:8px 13px;font-size:13px;width:220px;background:#fff;color:var(--text);outline:none;font-family:inherit;-webkit-user-select:text;user-select:text}
+.scaleBox{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted,#667085);white-space:nowrap}
+.scaleBox select{border:1px solid var(--border);border-radius:9px;padding:7px 8px;font-size:12.5px;background:#fff;color:var(--text);font-family:inherit;outline:none;cursor:pointer}
+.scaleBox select:focus{border-color:var(--accent)}
+#q:focus{border-color:var(--accent)}
+.btn{font-size:12.5px;padding:8px 15px;border-radius:9px;border:1px solid var(--border);background:#fff;color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s,border-color .15s;white-space:nowrap;font-family:inherit}
+.btn:hover{background:#f2f4f7;border-color:#d0d5dd}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-2)}
+.pill{font-size:11.5px;padding:6px 12px;border-radius:999px;border:1px solid #bfe6cd;background:#f0faf3;color:#127a3a;white-space:nowrap}
+
+/* ---------- page tabs ---------- */
+.tabs{display:flex;gap:4px;margin-top:20px;border-bottom:1px solid var(--border)}
+.tab{background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:9px 15px;font-size:13px;font-family:inherit;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:color .15s,border-color .15s}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.tab .num{font-size:11px;font-weight:500;color:var(--muted);background:var(--chip);border-radius:20px;padding:1px 7px;min-width:20px;text-align:center;line-height:1.6}
+.tab.on .num{background:#e6f0fa;color:var(--accent)}
+.page{padding-top:2px}
+section{margin-top:22px}
+h2{font-size:14px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+h2 .count{font-size:11.5px;color:var(--muted);font-weight:400}
+.hint{font-size:11.5px;color:var(--muted);margin-bottom:4px;line-height:1.7}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(244px,1fr));gap:13px;margin-top:12px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:15px;display:flex;flex-direction:column;gap:9px;transition:box-shadow .15s,transform .15s,border-color .15s}
+.card:hover{box-shadow:0 4px 16px rgba(16,24,40,.08);transform:translateY(-1px);border-color:#d7dce3}
+.top{display:flex;align-items:center;gap:11px;min-width:0}
+.icon{width:42px;height:42px;border-radius:10px;flex:none;background:var(--chip);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.icon img{width:29px;height:29px;object-fit:contain}
+.icon svg{width:29px;height:29px}
+.name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.desc{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.cmd{font-family:var(--mono);font-size:10.5px;background:var(--chip);border-radius:7px;padding:6px 9px;color:#344054;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.actions{display:flex;gap:7px;margin-top:auto}
+.actions .btn{flex:1;justify-content:center;padding:7px 9px;font-size:12px}
+.group{margin-top:14px}
+.gname{font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.04em;margin-bottom:7px}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px dashed #d0d5dd;background:#fff;border-radius:999px;padding:7px 14px;font-size:12.5px;cursor:pointer;color:var(--text);transition:all .15s;font-family:inherit}
+.chip:hover{border-color:var(--accent);color:var(--accent);border-style:solid}
+.chip.on{border-style:solid;border-color:#2f9e44;color:#2f9e44;background:#f2fbf4}
+.chip.on:hover{border-color:#227534;color:#227534}
+.chip.tool{border-color:#b9c6dd;color:#1f3b63;background:#f7f9fc}
+.chip.tool:hover{border-color:var(--accent);color:var(--accent)}
+.chip.tool.on{color:#2f9e44;border-color:#2f9e44;background:#f2fbf4}
+.custom{display:flex;gap:8px;margin-top:16px;max-width:640px}
+.custom input{flex:1;border:1px solid var(--border);background:#fff;border-radius:9px;padding:9px 12px;font-size:12.5px;font-family:inherit;color:var(--text);outline:none;transition:border-color .15s}
+.custom input:focus{border-color:var(--accent)}
+.custom input::placeholder{color:#98a2b3}
+.empty{background:#fff;border:1px dashed var(--border);border-radius:13px;padding:36px;text-align:center;color:var(--muted);font-size:13px;margin-top:12px;line-height:1.9}
+
+/* 输入法缺失提示条 */
+.notice{display:flex;gap:14px;align-items:flex-start;background:#fffbf0;border:1px solid #f3dfae;border-radius:12px;padding:13px 15px;margin-top:18px}
+.notice .ntext{flex:1;font-size:12.5px;line-height:1.75;color:#6b4e16}
+.notice .ntext b{color:#8a5a00}
+.notice .ntext code{font-family:var(--mono);background:#f7ecd2;border-radius:4px;padding:1px 5px;font-size:11px}
+.notice .nact{display:flex;gap:7px;flex:none;align-items:center}
+kbd{font-family:var(--mono);background:var(--chip);border-radius:4px;padding:1px 5px;font-size:10.5px}
+footer{margin-top:32px;padding-top:16px;border-top:1px solid var(--border);font-size:11.5px;color:var(--muted);line-height:1.95}
+.loading{display:flex;align-items:center;gap:10px;padding:40px;color:var(--muted);font-size:13px;justify-content:center}
+.spinner{width:15px;height:15px;border:2px solid #d0d5dd;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- terminal dock ---------- */
+#dock{flex:none;height:0;overflow:hidden;background:#0d1117;border-top:1px solid #30363d;transition:height .18s ease;display:flex;flex-direction:column}
+#dock.open{height:300px}
+#dock .bar{flex:none;display:flex;align-items:center;gap:7px;padding:7px 12px;background:#161b22;border-bottom:1px solid #30363d;font-size:11.5px;font-family:var(--mono)}
+#dock .bar .t{color:#8b949e;margin-left:4px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#dock .bar button{background:transparent;border:1px solid #30363d;color:#8b949e;border-radius:5px;font-size:10.5px;padding:2px 8px;cursor:pointer;font-family:inherit}
+#dock .bar button:hover{color:#c9d1d9;border-color:#8b949e}
+#dock .dot{width:8px;height:8px;border-radius:50%;flex:none}
+#dock .spin2{display:none;width:9px;height:9px;border:2px solid #30363d;border-top-color:#7ee787;border-radius:50%;animation:spin .8s linear infinite;flex:none}
+#dock .body{flex:1;overflow-y:auto;padding:10px 13px;font-family:var(--mono);font-size:11.8px;line-height:1.72;white-space:pre-wrap;word-break:break-all;-webkit-user-select:text;user-select:text}
+#dock .line.cmd{color:#7ee787}
+#dock .line.out{color:#c9d1d9}
+#dock .line.err{color:#ff7b72}
+#dock .line.dim{color:#6e7681}
+#dock .line.exit{color:#f2cc60;font-weight:600}
+#dock .line.ok{color:#56d364;font-weight:600}
+#dock .line.info{color:#79c0ff}
+#dock .line.hint{color:#7ee0d0;background:rgba(126,224,208,.08);border-left:2px solid #2ea043;border-radius:0 4px 4px 0;padding:4px 8px;margin:3px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#dock .line.hint button{font-family:inherit;font-size:11px;background:#238636;color:#fff;border:0;border-radius:4px;padding:2px 8px;cursor:pointer;white-space:nowrap}
+#dock .line.hint button:hover{background:#2ea043}
+#dock .body::-webkit-scrollbar{width:9px}
+#dock .body::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px}
+</style>
+</head>
+<body>
+
+<div class="main" id="scroller">
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>WSL 应用启动台<span class="ver" id="ver"></span></h1>
+        <p class="sub" id="sub"><b>WSL2 · Ubuntu</b> · 正在扫描已安装的应用…</p>
+      </div>
+      <div class="tools">
+        <span class="pill" id="pill">● 桌面应用模式</span>
+        <input id="q" placeholder="搜索应用名称或命令…" autocomplete="off">
+        <label class="scaleBox" id="scaleBox" title="WSLg 默认按 96 DPI 渲染，Linux 界面会比 Windows 上小一档；这里决定启动应用时注入的缩放比例">
+          <span>界面缩放</span>
+          <select id="scale">
+            <option value="auto">跟随 Windows</option>
+            <option value="1">100%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+            <option value="1.75">175%</option>
+            <option value="2">200%</option>
+          </select>
+        </label>
+        <button class="btn" id="openFolder">打开 WSL 文件</button>
+        <button class="btn" id="rescan">重新扫描</button>
+        <button class="btn" id="selftest">链路自检</button>
+      </div>
+    </header>
+
+    <nav class="tabs" id="tabs">
+      <button class="tab on" data-page="apps">启动台<span class="num" id="tabApps"></span></button>
+      <button class="tab" data-page="install">常用应用一键安装<span class="num" id="tabInst"></span></button>
+    </nav>
+
+    <div class="page" id="page-apps">
+    <div class="notice" id="imeNotice" hidden>
+      <div class="ntext">
+        <b>WSL 里的应用用不了 Windows 输入法。</b>
+        WSLg 只把画面和按键转发给 Linux，Windows 的中文输入法不会跟着进去，所以 Linux 应用必须在 Linux 里自带一套输入法。
+        当前 WSL 内没有检测到 <code>fcitx5</code>，点右边装一个（拼音），装完按 <code>Ctrl+空格</code> 切中英文。
+      </div>
+      <div class="nact">
+        <button class="btn primary" id="imeGo">去安装 Fcitx5</button>
+        <button class="btn" id="imeDismiss">不再提示</button>
+      </div>
+    </div>
+    <section>
+      <h2>已安装的 GUI 应用 <span class="count" id="shownCount"></span></h2>
+      <p class="hint">点「启动」后底部展开执行终端，实时显示 WSL 环境自检、命令执行与退出码；应用窗口通过 WSLg 弹在 Windows 桌面。</p>
+      <div class="loading" id="loading"><span class="spinner"></span>正在读取 WSL 中已安装的应用…</div>
+      <div class="grid" id="grid" hidden></div>
+      <div class="empty" id="empty" hidden>
+        没有发现可启动的 GUI 应用。<br>
+        可能是 WSL 尚未运行，或还没有安装过带图形界面的应用。<br>
+        切到上面的「常用应用一键安装」页装一个，装完点「重新扫描」。
+      </div>
+    </section>
+    </div>
+
+    <div class="page" id="page-install" hidden>
+    <section>
+      <h2>常用应用 · 一键安装 <span class="count" id="instCount"></span></h2>
+      <p class="hint">以 root 身份运行 <kbd>apt-get install</kbd>（无需输入密码），安装输出实时显示在下方终端里，装完自动重扫。绿色 ✓ 表示该包已装好，点一下可重装。</p>
+      <div id="imeBox"></div>
+      <div id="chips"></div>
+      <div class="custom">
+        <input id="pkgInput" placeholder="装别的？输入包名后回车，例如 meld 或 htop neofetch" autocomplete="off" spellcheck="false">
+        <button class="btn" id="pkgInstall">安装</button>
+      </div>
+    </section>
+    </div>
+
+    <footer>
+      快捷键：<kbd>Ctrl+1</kbd> 启动台 · <kbd>Ctrl+2</kbd> 一键安装 · <kbd>Ctrl+F</kbd> 搜索应用 · <kbd>Esc</kbd> 收起终端<br>
+      应用窗口由 WSLg 渲染，属于 WSL 内的程序；关闭应用后终端会显示退出码。所有功能都在本应用内完成，不依赖浏览器、不占用网络端口。
+    </footer>
+  </div>
+</div>
+
+<div id="dock">
+  <div class="bar">
+    <span class="dot" style="background:#ff7b72"></span>
+    <span class="dot" style="background:#f2cc60"></span>
+    <span class="dot" style="background:#7ee787"></span>
+    <span class="spin2" id="dockSpin"></span>
+    <span class="t" id="dockTitle">执行终端</span>
+    <button id="dockClear">清空</button>
+    <button id="dockClose">收起</button>
+  </div>
+  <div class="body" id="dockBody"></div>
+</div>
+
+<script>
+"use strict";
+
+var APPS = [];
+var DISTRO = "Ubuntu";
+var bridge = window.launcher || null;
+var dock = document.getElementById("dock");
+var dockBody = document.getElementById("dockBody");
+var dockTitle = document.getElementById("dockTitle");
+var dockSpin = document.getElementById("dockSpin");
+var grid = document.getElementById("grid");
+var empty = document.getElementById("empty");
+var loading = document.getElementById("loading");
+var shownCount = document.getElementById("shownCount");
+
+/* ---------------- page switching ---------------- */
+/* 两个页面：启动台（已装应用）/ 一键安装（apt 与 AI 工具）。
+   共用顶部工具栏与底部终端坞，切换只改显隐，不销毁状态。 */
+var tabs = document.getElementById("tabs");
+var pageApps = document.getElementById("page-apps");
+var pageInstall = document.getElementById("page-install");
+var tabApps = document.getElementById("tabApps");
+var tabInst = document.getElementById("tabInst");
+var scroller = document.getElementById("scroller");
+var CURRENT_PAGE = "apps";
+
+function setPage(name) {
+  CURRENT_PAGE = (name === "install") ? "install" : "apps";
+  pageApps.hidden = CURRENT_PAGE !== "apps";
+  pageInstall.hidden = CURRENT_PAGE !== "install";
+  var btns = tabs.querySelectorAll(".tab");
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle("on", btns[i].getAttribute("data-page") === CURRENT_PAGE);
+  }
+  /* 搜索框只服务于应用列表，安装页隐藏 */
+  var q = document.getElementById("q");
+  if (q) { q.hidden = CURRENT_PAGE !== "apps"; }
+  if (scroller) { scroller.scrollTop = 0; }
+}
+
+tabs.addEventListener("click", function (e) {
+  var b = e.target.closest(".tab");
+  if (b) { setPage(b.getAttribute("data-page")); }
+});
+
+/* ---------------- interface scaling ---------------- */
+/* WSLg 按 96 DPI 渲染 X 应用，Windows 侧 150% 缩放时 Linux 界面只有 2/3 大。
+   这里选择启动时注入的缩放比例；auto = 直接用当前显示器缩放（screen.scaleFactor）。 */
+var scaleSel = document.getElementById("scale");
+
+function paintScale(r) {
+  if (!r) { return; }
+  scaleSel.value = r.scale || "auto";
+  var win = Math.round((r.windowsScale || 1) * 100);
+  var eff = Math.round((r.effective || 1) * 100);
+  var autoOpt = scaleSel.querySelector('option[value="auto"]');
+  if (autoOpt) { autoOpt.textContent = "跟随 Windows（" + win + "%）"; }
+  scaleSel.title = "当前生效：" + eff + "%（Windows 显示缩放 " + win + "%）";
+  if (r.ime === "auto" || r.ime === "off") {
+    IME.inject = r.ime;
+    markIme();
+  }
+}
+
+if (scaleSel && bridge && bridge.getSettings) {
+  bridge.getSettings().then(paintScale).catch(function () { /* 预览模式 */ });
+  scaleSel.addEventListener("change", function () {
+    if (!bridge || !bridge.setSettings) { return; }
+    bridge.setSettings({ scale: scaleSel.value }).then(paintScale).catch(function () {});
+  });
+}
+
+var FALLBACK_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="#E6F1FB"/><path d="M13 17l9 7-9 7" fill="none" stroke="#185FA5" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><line x1="24" y1="33" x2="35" y2="33" stroke="#185FA5" stroke-width="3.2" stroke-linecap="round"/></svg>';
+
+var QUICK_GROUPS = [
+  {
+    name: "编辑器 / 开发",
+    items: [
+      ["gedit", "gedit 文本编辑器"],
+      ["mousepad", "Mousepad 轻量编辑器"],
+      ["geany", "Geany 轻量 IDE"],
+      ["meld", "Meld 差异对比"],
+      ["gnome-terminal", "GNOME 终端"],
+      ["xterm", "xterm 终端"],
+      ["x11-apps", "x11-apps 小工具"]
+    ]
+  },
+  {
+    name: "文件 / 系统",
+    items: [
+      ["nautilus", "Nautilus 文件管理器"],
+      ["thunar", "Thunar 文件管理器（轻量）"],
+      ["gnome-system-monitor", "系统监视器"],
+      ["baobab", "磁盘占用分析"],
+      ["gnome-calculator", "计算器"],
+      ["gucharmap", "字符映射表"]
+    ]
+  },
+  {
+    name: "图形 / 媒体",
+    items: [
+      ["eog", "Eye of GNOME 看图"],
+      ["gimp", "GIMP 图像处理"],
+      ["inkscape", "Inkscape 矢量绘图"],
+      ["mpv", "mpv 播放器"],
+      ["vlc", "VLC 播放器"]
+    ]
+  },
+  {
+    name: "办公 / 阅读",
+    items: [
+      ["evince", "Evince PDF 阅读"],
+      ["libreoffice", "LibreOffice 套件（~500MB）"],
+      ["drawing", "Drawing 简易绘图"]
+    ]
+  },
+  {
+    name: "网络 / 远程",
+    items: [
+      ["remmina", "Remmina 远程桌面"],
+      ["filezilla", "FileZilla FTP/SFTP"],
+      ["transmission-gtk", "Transmission 下载"]
+    ]
+  },
+  {
+    name: "修复 / 字体",
+    items: [
+      ["xfonts-base", "xfonts-base（补 X 核心字体）"],
+      ["fonts-noto-cjk", "fonts-noto-cjk（中文字体）"],
+      ["dbus-x11", "dbus-x11（消除 DBus 告警）"],
+      ["xdg-utils", "xdg-utils（xdg-open 支持）"]
+    ]
+  }
+];
+
+var INSTALLED = {};
+
+/* AI 工具：桌面版走 deb（真正的 GUI 应用），CLI 版作为装不上时的兜底 */
+var TOOL_ITEMS = [
+  ["codex_app", "ChatGPT / Codex 桌面版", "deb"],
+  ["dsh_app", "DSH 桌面版", "deb"],
+  ["qoder_app", "Qoder IDE 桌面版", "deb"],
+  ["codex_cli", "Codex CLI", "npm"],
+  ["dsh_cli", "DSH CLI", "npm"]
+];
+
+var TOOL_CMD = {
+  codex_app: "curl -fL .../codex-app-prod/linux/deb/latest/chatgpt_amd64.deb",
+  dsh_app: "curl -fL github.com/citrusli2026/dsh-desktop/releases/latest",
+  qoder_app: "curl -fL download.qoder.com/release/latest/qoder_amd64.deb",
+  codex_cli: "npm install -g @openai/codex",
+  dsh_cli: "npm install -g @deepseek-ai/dsh"
+};
+
+var TOOL_INSTALLED = {};
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+/* ---------------- terminal dock ---------------- */
+function dockOpen(title) {
+  dockTitle.textContent = title || "执行终端";
+  dock.classList.add("open");
+  dockBody.innerHTML = "";
+  dockSpin.style.display = "inline-block";
+}
+function dockLine(cls, text) {
+  var d = document.createElement("div");
+  d.className = "line " + cls;
+  d.textContent = text;
+  dockBody.appendChild(d);
+  dockBody.scrollTop = dockBody.scrollHeight;
+}
+function dockDone() { dockSpin.style.display = "none"; }
+
+/* a diagnosis line: explanation plus, when a package fixes it, a one-click fix */
+function dockHint(text, pkg) {
+  var d = document.createElement("div");
+  d.className = "line hint";
+  var span = document.createElement("span");
+  span.textContent = "建议 " + text;
+  d.appendChild(span);
+  if (pkg) {
+    var b = document.createElement("button");
+    b.textContent = "安装 " + pkg;
+    b.onclick = function () { runInstall(pkg); };
+    d.appendChild(b);
+  }
+  dockBody.appendChild(d);
+  dockBody.scrollTop = dockBody.scrollHeight;
+}
+function typeLine(text, done) {
+  var d = document.createElement("div");
+  d.className = "line cmd";
+  dockBody.appendChild(d);
+  var i = 0;
+  var timer = setInterval(function () {
+    i += 1;
+    d.textContent = text.slice(0, i);
+    dockBody.scrollTop = dockBody.scrollHeight;
+    if (i >= text.length) { clearInterval(timer); if (done) { done(); } }
+  }, 18);
+}
+document.getElementById("dockClear").onclick = function () { dockBody.innerHTML = ""; };
+document.getElementById("dockClose").onclick = function () { dock.classList.remove("open"); };
+
+/* ---------------- app grid ---------------- */
+function render(list) {
+  grid.innerHTML = "";
+  if (!list.length) {
+    grid.hidden = true;
+    empty.hidden = false;
+    shownCount.textContent = "";
+    return;
+  }
+  empty.hidden = true;
+  grid.hidden = false;
+  list.forEach(function (a) {
+    var card = document.createElement("div");
+    card.className = "card";
+    card.title = "双击卡片直接启动";
+    var iconHtml = a.icon ? '<img src="' + a.icon + '" alt="">' : FALLBACK_ICON;
+    card.innerHTML =
+      '<div class="top"><div class="icon">' + iconHtml + '</div>' +
+      '<div style="min-width:0"><div class="name">' + esc(a.name) + '</div>' +
+      (a.desc ? '<div class="desc">' + esc(a.desc) + '</div>' : '') + '</div></div>' +
+      '<div class="cmd" title="' + esc(a.cmd) + '">' + esc(a.cmd) + '</div>' +
+      '<div class="actions">' +
+      '<button class="btn primary" data-exec="' + esc(a.exec) + '" data-name="' + esc(a.name) + '">启动</button>' +
+      '<button class="btn" data-cmd="' + esc(a.cmd) + '">复制命令</button>' +
+      '</div>';
+    card.addEventListener("dblclick", function () { startApp(a.exec, a.name); });
+    grid.appendChild(card);
+  });
+  shownCount.textContent = "(" + list.length + " / " + APPS.length + ")";
+  if (tabApps) { tabApps.textContent = APPS.length ? String(APPS.length) : ""; }
+}
+
+function reportCount() {
+  document.getElementById("sub").innerHTML =
+    "<b>WSL2 · " + esc(DISTRO) + "</b> · 发现 <b>" + APPS.length + "</b> 个 GUI 应用";
+}
+
+function loadApps() {
+  if (!bridge) { return Promise.resolve([]); }
+  return bridge.listApps().then(function (r) {
+    APPS = (r && r.apps) ? r.apps : [];
+    DISTRO = (r && r.distro) ? r.distro : DISTRO;
+    var ver = document.getElementById("ver");
+    if (ver) { ver.textContent = r && r.version ? "v" + r.version : ""; }
+    loading.hidden = true;
+    document.getElementById("q").value = "";
+    reportCount();
+    render(APPS);
+    refreshInstalled();
+    refreshTools();
+    refreshIme();
+    return APPS;
+  }).catch(function (e) {
+    loading.hidden = true;
+    empty.hidden = false;
+    empty.textContent = "扫描失败：" + (e && e.message ? e.message : e) + "（请确认 WSL 正在运行）";
+  });
+}
+
+function startApp(exec, name) {
+  if (!bridge) { return; }
+  dockOpen("启动 · " + (name || exec));
+  typeLine("wsl -d " + DISTRO + " -- " + exec, function () {
+    bridge.launch(exec, name);
+  });
+}
+
+grid.addEventListener("click", function (e) {
+  var launchBtn = e.target.closest("button[data-exec]");
+  if (launchBtn) {
+    startApp(launchBtn.getAttribute("data-exec"), launchBtn.getAttribute("data-name"));
+    return;
+  }
+  var copyBtn = e.target.closest("button[data-cmd]");
+  if (copyBtn) {
+    var cmd = copyBtn.getAttribute("data-cmd");
+    if (!bridge) { return; }
+    bridge.copy(cmd).then(function () {
+      copyBtn.textContent = "已复制";
+      setTimeout(function () { copyBtn.textContent = "复制命令"; }, 1400);
+    });
+  }
+});
+
+/* ---------------- stream events from main ---------------- */
+if (bridge) { bridge.onEvent(function (m) {
+  if (!m) { return; }
+  if (m.t === "out") { dockLine("out", m.line); }
+  else if (m.t === "err") { dockLine("err", m.line); }
+  else if (m.t === "dim") { dockLine("dim", m.line); }
+  else if (m.t === "ok") { dockLine("ok", m.line); }
+  else if (m.t === "cmd") { dockLine("cmd", m.line); }
+  else if (m.t === "info") { dockLine("info", m.line); }
+  else if (m.t === "hint") { dockHint(m.text, m.pkg); }
+  else if (m.t === "imeready") {
+    dockLine("ok", "● 输入法已就绪：按 Ctrl+空格 切换中英文（已开着的应用要重启一次）");
+    refreshIme();
+  }
+  else if (m.t === "exit") { dockLine("exit", "[退出码 " + m.code + "]"); dockDone(); }
+  else if (m.t === "rescanned") {
+    dockLine("info", "安装结束，正在重新扫描应用列表…");
+    loadApps();
+  }
+}); }
+
+/* ---------------- toolbar ---------------- */
+document.getElementById("q").addEventListener("input", function (e) {
+  var k = e.target.value.trim().toLowerCase();
+  render(!k ? APPS : APPS.filter(function (a) {
+    return (a.name + " " + (a.desc || "") + " " + a.exec).toLowerCase().indexOf(k) >= 0;
+  }));
+});
+
+document.getElementById("openFolder").addEventListener("click", function () {
+  if (!bridge) { return; }
+  dockOpen("浏览 WSL 文件");
+  dockLine("info", "用 Windows 资源管理器打开 WSL 家目录（不需要在 Linux 里装文件管理器）…");
+  bridge.openFolder("").then(function (r) {
+    if (r && r.ok) {
+      dockLine("cmd", "explorer.exe " + r.path);
+      dockLine("ok", "● 已打开：" + r.path);
+      dockLine("dim", "提示：地址栏输入 \\\\wsl.localhost\\" + DISTRO + " 可浏览整个 Linux 文件系统。");
+    } else {
+      dockLine("err", "打开失败：" + ((r && r.error) || "未知错误"));
+      dockLine("info", "可直接在资源管理器地址栏粘贴：" + ((r && r.path) || ("\\\\wsl.localhost\\" + DISTRO)));
+    }
+    dockDone();
+  }).catch(function (e) {
+    dockLine("err", "打开失败：" + (e && e.message ? e.message : e));
+    dockDone();
+  });
+});
+
+document.getElementById("rescan").addEventListener("click", function () {
+  if (!bridge) { return; }
+  dockOpen("重新扫描");
+  dockLine("info", "正在扫描 WSL 中的应用（.desktop）…");
+  loadApps().then(function (list) {
+    dockLine("info", "扫描完成：" + list.length + " 个应用");
+    dockDone();
+  });
+});
+
+document.getElementById("selftest").addEventListener("click", function () {
+  if (!bridge) { return; }
+  dockOpen("链路自检");
+  typeLine("wsl -d " + DISTRO + " -- bash -c '<WSLg 环境自检脚本>'", function () {
+    bridge.selftest();
+  });
+});
+
+/* install a package as root, streaming apt output into the dock */
+function runInstall(pkg) {
+  if (!bridge) { return; }
+  dockOpen("安装 · " + pkg);
+  typeLine("apt-get install -y " + pkg, function () {
+    dockLine("info", "以 root 身份安装，输出实时显示；完成后自动重扫。");
+    bridge.install(pkg);
+  });
+}
+
+var chips = document.getElementById("chips");
+
+QUICK_GROUPS.forEach(function (group) {
+  var wrap = document.createElement("div");
+  wrap.className = "group";
+
+  var title = document.createElement("div");
+  title.className = "gname";
+  title.textContent = group.name;
+  wrap.appendChild(title);
+
+  var row = document.createElement("div");
+  row.className = "row";
+
+  group.items.forEach(function (pair) {
+    var pkg = pair[0], label = pair[1];
+    var c = document.createElement("button");
+    c.className = "chip";
+    c.setAttribute("data-pkg", pkg);
+    c.setAttribute("data-label", label);
+    c.textContent = "+ " + label;
+    c.title = "点击安装（apt-get install -y " + pkg + "）";
+    c.onclick = function () { runInstall(pkg); };
+    row.appendChild(c);
+  });
+
+  wrap.appendChild(row);
+  chips.appendChild(wrap);
+});
+
+/* ---------------- custom package install ---------------- */
+var pkgInput = document.getElementById("pkgInput");
+var pkgBtn = document.getElementById("pkgInstall");
+
+function customInstall() {
+  var raw = (pkgInput.value || "").trim();
+  if (!raw) { pkgInput.focus(); return; }
+  if (!bridge) { return; }
+  pkgInput.value = "";
+  runInstall(raw.replace(/\s+/g, " "));
+}
+
+pkgBtn.addEventListener("click", customInstall);
+pkgInput.addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { customInstall(); }
+});
+
+function toolKind(id) {
+  for (var i = 0; i < TOOL_ITEMS.length; i++) {
+    if (TOOL_ITEMS[i][0] === id) { return TOOL_ITEMS[i][2]; }
+  }
+  return "npm";
+}
+
+function runToolInstall(id, label) {
+  if (!bridge) { return; }
+  dockOpen("安装 · " + (label || id));
+  typeLine(TOOL_CMD[id] || id, function () {
+    if (toolKind(id) === "deb") {
+      dockLine("info", "下载官方/社区 deb 后用 apt 安装，apt 会自动补齐 GTK3 等运行库；下载进度每 5 秒刷新一次。");
+    } else {
+      dockLine("info", "先补齐 Node.js 24 与 xterm，再 npm 全局安装，最后写入启动项；输出实时显示。");
+    }
+    bridge.installTool(id);
+  });
+}
+
+/* AI 工具分组：与 apt 包分开渲染，安装流程完全不同 */
+(function renderTools() {
+  var wrap = document.createElement("div");
+  wrap.className = "group";
+
+  var title = document.createElement("div");
+  title.className = "gname";
+  title.textContent = "AI 工具 · 桌面版优先（deb），CLI 备用";
+  wrap.appendChild(title);
+
+  var row = document.createElement("div");
+  row.className = "row";
+
+  TOOL_ITEMS.forEach(function (triple) {
+    var id = triple[0], label = triple[1], kind = triple[2];
+    var c = document.createElement("button");
+    c.className = "chip tool";
+    c.setAttribute("data-tool", id);
+    c.setAttribute("data-label", label);
+    c.setAttribute("data-kind", kind);
+    c.textContent = "+ " + label;
+    c.title = toolTip(kind);
+    c.onclick = function () { runToolInstall(id, label); };
+    row.appendChild(c);
+  });
+
+  wrap.appendChild(row);
+  chips.appendChild(wrap);
+})();
+
+function toolTip(kind) {
+  return kind === "deb"
+    ? "点击安装桌面 GUI 版本（官方/社区 deb，自带运行时，不需 Node）"
+    : "点击安装命令行版本（需要 Node 24，装完会写入启动项）";
+}
+
+function markTools() {
+  var nodes = chips.querySelectorAll(".chip[data-tool]");
+  for (var i = 0; i < nodes.length; i++) {
+    var node = nodes[i];
+    var id = node.getAttribute("data-tool");
+    var label = node.getAttribute("data-label") || "";
+    var kind = node.getAttribute("data-kind");
+    if (TOOL_INSTALLED[id]) {
+      node.classList.add("on");
+      node.textContent = "✓ " + label;
+      node.title = "已安装（点击可重装）";
+    } else {
+      node.classList.remove("on");
+      node.textContent = "+ " + label;
+      node.title = toolTip(kind);
+    }
+  }
+}
+
+function refreshTools() {
+  if (!bridge || !bridge.toolStatus) { return; }
+  bridge.toolStatus().then(function (r) {
+    TOOL_INSTALLED = (r && r.tools) || {};
+    markTools();
+  }).catch(function () { /* 未连接时保持未标记 */ });
+}
+
+/* ---------------- 中文输入法（fcitx5） ---------------- */
+/* WSLg 只转发画面与按键，Windows 的输入法不会跟着进 Linux，所以 Linux 侧必须
+   自带 IM。这里负责：① 启动台顶部缺失提示；② 一键安装；③ 启动时是否注入环境。 */
+var IME = { installed: false, running: false, inject: "auto" };
+var imeBox = document.getElementById("imeBox");
+var imeNotice = document.getElementById("imeNotice");
+var IME_INSTALL_LABEL = "Fcitx5 中文输入法（拼音）";
+
+function imeInstallTip() {
+  return "安装 fcitx5 + 拼音 + GTK/Qt 前端（约 40~60MB），装完自动配置并启动";
+}
+
+(function renderImeGroup() {
+  if (!imeBox) { return; }
+  var wrap = document.createElement("div");
+  wrap.className = "group";
+
+  var title = document.createElement("div");
+  title.className = "gname";
+  title.textContent = "中文输入法 · Windows 输入法不会传进 WSL";
+  wrap.appendChild(title);
+
+  var row = document.createElement("div");
+  row.className = "row";
+
+  var inst = document.createElement("button");
+  inst.className = "chip tool";
+  inst.id = "imeInstall";
+  inst.textContent = "+ " + IME_INSTALL_LABEL;
+  inst.title = imeInstallTip();
+  inst.onclick = function () { runImeInstall(); };
+
+  var toggle = document.createElement("button");
+  toggle.className = "chip tool";
+  toggle.id = "imeToggle";
+  toggle.onclick = function () { toggleImeInjection(); };
+
+  row.appendChild(inst);
+  row.appendChild(toggle);
+  wrap.appendChild(row);
+  imeBox.appendChild(wrap);
+})();
+
+function markIme() {
+  var inst = document.getElementById("imeInstall");
+  if (inst) {
+    if (IME.installed) {
+      inst.classList.add("on");
+      inst.textContent = "✓ " + IME_INSTALL_LABEL;
+      inst.title = IME.running ? "已安装且正在运行（点击可重装 / 重启）" : "已安装但当前没在运行（点一下重启它）";
+    } else {
+      inst.classList.remove("on");
+      inst.textContent = "+ " + IME_INSTALL_LABEL;
+      inst.title = imeInstallTip();
+    }
+  }
+
+  var toggle = document.getElementById("imeToggle");
+  if (toggle) {
+    var on = IME.inject !== "off";
+    toggle.classList.toggle("on", on);
+    toggle.textContent = on ? "启动时注入输入法环境：开" : "启动时注入输入法环境：关";
+    toggle.title = on
+      ? "启动应用时设置 GTK_IM_MODULE / QT_IM_MODULE / XMODIFIERS 并确保 fcitx5 在跑（点击关闭）"
+      : "已关闭注入，启动的应用不会挂输入法（点击开启）";
+  }
+
+  if (imeNotice) {
+    var dismissed = false;
+    try { dismissed = localStorage.getItem("imeNoticeOff") === "1"; } catch (e) { /* file:// 下可能禁用 */ }
+    /* 只有真的查过状态（checked）才提示，避免启动瞬间闪一下 */
+    imeNotice.hidden = !IME.checked || IME.installed || dismissed;
+  }
+}
+
+function refreshIme() {
+  if (!bridge || !bridge.imeStatus) { return; }
+  bridge.imeStatus().then(function (r) {
+    IME = Object.assign(IME, r || {});
+    IME.checked = true;
+    markIme();
+  }).catch(function () { /* 未连接时保持未安装态 */ });
+}
+
+function runImeInstall() {
+  if (!bridge) { return; }
+  dockOpen("安装 · " + IME_INSTALL_LABEL);
+  typeLine("apt-get install -y fcitx5 fcitx5-chinese-addons fcitx5-frontend-gtk3 …", function () {
+    dockLine("info", "WSLg 不会转发 Windows 输入法，所以要在 Linux 里装一套；装完会自动写入拼音配置并启动 fcitx5。");
+    bridge.installIme();
+  });
+}
+
+function toggleImeInjection() {
+  IME.inject = IME.inject === "off" ? "auto" : "off";
+  markIme();
+  if (!bridge || !bridge.setSettings) { return; }
+  bridge.setSettings({ ime: IME.inject }).then(function (r) {
+    if (r && r.ime) { IME.inject = r.ime; }
+    markIme();
+  }).catch(function () {});
+}
+
+if (imeNotice) {
+  var imeGo = document.getElementById("imeGo");
+  if (imeGo) { imeGo.onclick = function () { setPage("install"); }; }
+  var imeDismiss = document.getElementById("imeDismiss");
+  if (imeDismiss) {
+    imeDismiss.onclick = function () {
+      try { localStorage.setItem("imeNoticeOff", "1"); } catch (e) { /* ignore */ }
+      imeNotice.hidden = true;
+    };
+  }
+}
+
+markIme();   /* 先把开关文字与 chip 文案摆正，状态等 WSL 查完再刷 */
+
+/* ---------------- installed markers ---------------- */
+function collectPkgs() {
+  var out = [];
+  QUICK_GROUPS.forEach(function (g) {
+    g.items.forEach(function (it) {
+      if (out.indexOf(it[0]) < 0) { out.push(it[0]); }
+    });
+  });
+  return out;
+}
+
+function markInstalled() {
+  var nodes = chips.querySelectorAll(".chip[data-pkg]");
+  var done = 0;
+  for (var i = 0; i < nodes.length; i++) {
+    var node = nodes[i];
+    var pkg = node.getAttribute("data-pkg");
+    var label = node.getAttribute("data-label") || node.textContent.replace(/^[+✓] /, "");
+    if (INSTALLED[pkg]) {
+      node.classList.add("on");
+      node.textContent = "✓ " + label;
+      node.title = "已安装（点击可重装）";
+      done++;
+    } else {
+      node.classList.remove("on");
+      node.textContent = "+ " + label;
+      node.title = "点击安装（apt-get install -y " + pkg + "）";
+    }
+  }
+  var badge = document.getElementById("instCount");
+  if (badge) { badge.textContent = done ? "已装 " + done + " / " + nodes.length : ""; }
+  if (tabInst) { tabInst.textContent = done ? done + "/" + nodes.length : ""; }
+}
+
+function refreshInstalled() {
+  if (!bridge || !bridge.installed) { return; }
+  bridge.installed(collectPkgs()).then(function (r) {
+    INSTALLED = {};
+    ((r && r.installed) || []).forEach(function (p) { INSTALLED[p] = 1; });
+    markInstalled();
+  }).catch(function () { /* leave unmarked */ });
+}
+
+/* ---------------- shortcuts ---------------- */
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") { dock.classList.remove("open"); }
+  if (e.ctrlKey && e.key.toLowerCase() === "f") {
+    e.preventDefault();
+    setPage("apps");
+    document.getElementById("q").focus();
+  }
+  /* Ctrl+1 / Ctrl+2 切换页面 */
+  if (e.ctrlKey && (e.key === "1" || e.key === "2")) {
+    e.preventDefault();
+    setPage(e.key === "1" ? "apps" : "install");
+  }
+});
+
+if (bridge) {
+  loadApps();
+} else {
+  loading.hidden = true;
+  empty.hidden = false;
+  empty.textContent = "当前是以普通网页方式打开界面文件，无法访问 WSL。请双击桌面「WSL 应用启动台」或 dist 目录下的 WSL 应用启动台.exe 运行本应用。";
+  document.getElementById("ver").textContent = "预览模式";
+}
+</script>
+</body>
+</html>
